@@ -1,0 +1,178 @@
+# InsightForge AI — Business Rules
+
+## 1. Order Status
+
+The `orders.status` column contains three statuses:
+
+* `completed`
+* `returned`
+* `canceled`
+
+### Rules
+
+* **Completed orders** → included in Net Revenue and Profit calculations.
+* **Returned orders** → excluded from Net Revenue and Profit calculations, but may be analyzed separately as a return metric.
+* **Canceled orders** → excluded from Revenue and Profit calculations.
+
+---
+
+## 2. Revenue
+
+InsightForge AI will use **Net Revenue as the default business-analysis metric**.
+
+### Net Revenue
+
+Only completed orders are included.
+
+```text
+Revenue = (quantity × unit_price) − discount_amount
+```
+
+Therefore:
+
+```text
+Net Revenue = SUM((quantity × unit_price) − discount_amount)
+```
+
+for completed orders only.
+
+### Gross Revenue
+
+Gross Revenue may be calculated separately as the revenue associated with completed and returned orders before excluding returned orders.
+
+Because the dataset does not appear to contain an actual refund amount, Gross Revenue and Net Revenue should **not** be treated as a complete accounting reconciliation.
+
+---
+
+## 3. Product Cost and Profit
+
+Product cost is calculated using the product's `unit_cost`.
+
+```text
+Product Cost = quantity × unit_cost
+```
+
+Profit is calculated only for completed orders:
+
+```text
+Profit = Revenue − Product Cost
+```
+
+where:
+
+```text
+Revenue = (quantity × unit_price) − discount_amount
+```
+
+---
+
+## 4. Profit Margin
+
+Profit Margin is calculated as:
+
+```text
+Profit Margin (%) = (Profit / Revenue) × 100
+```
+
+Profit Margin should only be calculated when Revenue is greater than zero.
+
+---
+
+## 5. Discounts
+
+There are two different discount-related fields:
+
+* `discount_code` → order-level label
+* `discount_amount` → item-level monetary discount
+
+### Rules
+
+* `discount_amount` is the actual monetary discount used in Revenue calculations.
+* `discount_code` is used only for grouping and analysis.
+* `discount_code` must not be used as a monetary discount value.
+
+Therefore:
+
+```text
+Revenue = (quantity × unit_price) − discount_amount
+```
+
+The project should be careful when analyzing discount codes because one order can contain multiple order items.
+
+---
+
+## 6. Average Order Value (AOV)
+
+AOV must be calculated at the **order level**, not the order-item level.
+
+This prevents orders containing multiple products from being counted multiple times.
+
+```text
+AOV = Net Revenue / COUNT(DISTINCT order_id)
+```
+
+Only completed orders are included in the default AOV calculation.
+
+---
+
+## 7. Data Relationships
+
+The dataset contains four main tables:
+
+* `orders`
+* `order_items`
+* `products`
+* `customers`
+
+Important relationships:
+
+```text
+orders.order_id
+        ↓
+order_items.order_id
+
+order_items.product_id
+        ↓
+products.product_id
+
+orders.customer_id
+        ↓
+customers.customer_id
+```
+
+An order can contain multiple order items.
+
+Therefore, queries involving revenue, profit, products, or categories must account for the one-to-many relationship between `orders` and `order_items`.
+
+---
+
+## 8. Evidence-Based AI Insights
+
+InsightForge AI must follow this principle:
+
+**DATA → CALCULATION → EVIDENCE → AI EXPLANATION**
+
+The LLM must not invent business explanations that are unsupported by the data.
+
+For example, if monthly revenue decreases, the system should first calculate the change and identify supporting evidence such as category, product, customer, or order-level changes.
+
+The AI should clearly distinguish between:
+
+* **Observed facts** — directly supported by the data.
+* **Calculated metrics** — derived using defined formulas.
+* **AI interpretation** — explanation based on the calculated evidence.
+* **Recommendations** — possible actions based on the evidence.
+
+---
+
+## 9. Default Analysis Principle
+
+Unless a specific analysis requires otherwise, InsightForge AI should use:
+
+* Completed orders
+* Net Revenue
+* Calculated Profit
+* Calculated Profit Margin
+* Order-level AOV
+
+These rules define the default business logic for Version 1 of the project.
